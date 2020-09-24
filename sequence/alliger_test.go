@@ -36,9 +36,9 @@ func runTestCases(t *testing.T, allg Alligner, tcs []testCaseAllg) {
 	for i, tc := range tcs {
 		resA, resB, score, err := Allign(allg, tc.a, tc.b)
 		require.NoError(t, err)
-		require.Equal(t, tc.resA, resA, "failed seq a test %d", i)
-		require.Equal(t, tc.resB, resB, "failed seq b test %d", i)
-		require.Equal(t, tc.score, score, "failed score test %d", i)
+		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
+		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)
+		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestAllgBlosum(t *testing.T) {
 func TestAllgDNA(t *testing.T) {
 	allg := NewAlligerDNA(-10)
 	tcs := []testCaseAllg{
-		{
+		{ // verified on https://www.ebi.ac.uk/Tools/psa/emboss_needle/
 			a:     "GCGCGTGCGCGGAAGGAGCCAAGGTGAAGTTGTAGCAGTGTGTCAGAAGAGGTGCGTGGCACCATGCTGTCCCCCGAGGCGGAGCGGGTGCTGCGGTACCTGGTCGAAGTAGAGGAGTTG",
 			b:     "GACTTGTGGAACCTACTTCCTGAAAATAACCTTCTGTCCTCCGAGCTCTCCGCACCCGTGGATGACCTGCTCCCGTACACAGATGTTGCCACCTGGCTGGATGAATGTCCGAATGAAGCG",
 			resA:  "GCGCGTGCGCGGAAGGAGCCAAGGTGAAGTTGTAGCAGTGTGTCAGAAGAGGTGCGTGGCA-CCAT-GCTGTCCCCCGAGGCGGA-GCGGGTGCTG-C-GGTACCTGGTCGAA-GT-AG-AGGAGTTG",
