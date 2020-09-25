@@ -34,7 +34,7 @@ type testCaseAllg struct {
 
 func runTestCases(t *testing.T, allg Alligner, tcs []testCaseAllg) {
 	for i, tc := range tcs {
-		resA, resB, score, err := Allign(allg, tc.a, tc.b)
+		resA, resB, score, err := Allign(allg, tc.a, tc.b, 8)
 		require.NoError(t, err)
 		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
 		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)

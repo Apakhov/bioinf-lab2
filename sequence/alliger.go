@@ -122,6 +122,7 @@ func (dt allgDinTable) calcRow(
 	beg, end int,
 	lBound, rBound *int32,
 	a, b string,
+	jNum int,
 ) {
 	if beg == end {
 		return
@@ -140,6 +141,13 @@ func (dt allgDinTable) calcRow(
 	}
 }
 
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (dt allgDinTable) calcTable(alg Alligner, a, b string, amThreads int) {
 	rowsPoints := make([]int, amThreads+1)
 	rowsPoints[0] = 1
@@ -151,7 +159,7 @@ func (dt allgDinTable) calcTable(alg Alligner, a, b string, amThreads int) {
 		rowsPoints[i] += rowsPoints[i-1]
 	}
 	bounds := make([]int32, amThreads)
-	bounds[0] = int32(len(b))
+	bounds[0] = int32(max(len(b), len(a)))
 	wg := sync.WaitGroup{}
 	wg.Add(amThreads)
 	for i := 0; i < amThreads; i++ {
@@ -161,10 +169,10 @@ func (dt allgDinTable) calcTable(alg Alligner, a, b string, amThreads int) {
 			continue
 		}
 		lBound, rBound := &bounds[i], &bounds[(i+1)%amThreads]
-		go func(beg, end int, lBound, rBound *int32) {
-			dt.calcRow(alg, beg, end, lBound, rBound, a, b)
+		go func(beg, end int, lBound, rBound *int32, i int) {
+			dt.calcRow(alg, beg, end, lBound, rBound, a, b, i)
 			wg.Done()
-		}(beg, end, lBound, rBound)
+		}(beg, end, lBound, rBound, i)
 	}
 	wg.Wait()
 }

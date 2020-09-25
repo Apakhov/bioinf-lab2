@@ -93,11 +93,15 @@ func formatRes(alg sequence.Alligner, res1, res2 string, v int, withColor bool) 
 			col = matchColor
 			conn = "|"
 		}
+		if outAlignment != 0 && (i)%int(outAlignment) == 0 {
+			bld1.WriteByte('\n')
+			bld2.WriteByte('\n')
+		}
 		col.Fprintf(&bld1, "%c", res1[i])
 		col.Fprintf(&bldMid, conn)
 		col.Fprintf(&bld2, "%c", res2[i])
 	}
-	if !noConnectios {
+	if !noConnectios && outAlignment == 0 {
 		bld1.WriteByte('\n')
 		bld1.WriteString(bldMid.String())
 	}

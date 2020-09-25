@@ -19,6 +19,7 @@ var (
 	noConnectios bool
 	logTime      bool
 	amThreads    int
+	outAlignment uint
 )
 
 func fatal(format string, v ...interface{}) {

@@ -15,6 +15,8 @@ func init() {
 	flag.Float64Var(&gap, "g", -2, "gap value")
 	flag.BoolVar(&noColor, "no-color", false, "disables colored output in cosole")
 	flag.BoolVar(&noConnectios, "no-connections", false, "disables connections in output")
+	flag.UintVar(&outAlignment, "outalignment", 0, "alignment of result sequences, if 0 no alignment used")
+	flag.UintVar(&outAlignment, "oa", 0, "alignment of result sequences, if 0 no alignment used")
 	flag.BoolVar(&logTime, "log-time", false, "print time of processing in log")
 	flag.IntVar(&amThreads, "threads", 8, "amount of threads for computing, for optimal speed use available amount of cpu")
 	flag.Usage = func() {
