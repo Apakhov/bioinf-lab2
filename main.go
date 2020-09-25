@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"lab2/sequence"
+	"log"
+	"time"
 )
 
 func main() {
@@ -26,7 +28,11 @@ func main() {
 	default:
 		fatal("bad table type %s", tableType)
 	}
+	t := time.Now()
 	res1, res2, v, err := sequence.Allign(allg, seq1.Value, seq2.Value, amThreads)
+	if logTime {
+		log.Print("calculation time: ", time.Now().Sub(t))
+	}
 	if err != nil {
 		fatal("alligning %s", err.Error())
 	}

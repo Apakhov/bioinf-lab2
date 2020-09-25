@@ -17,6 +17,7 @@ var (
 	outFile      string
 	noColor      bool
 	noConnectios bool
+	logTime      bool
 	amThreads    int
 )
 
