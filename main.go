@@ -26,7 +26,7 @@ func main() {
 	default:
 		fatal("bad table type %s", tableType)
 	}
-	res1, res2, v, err := sequence.Allign(allg, seq1.Value, seq2.Value)
+	res1, res2, v, err := sequence.Allign(allg, seq1.Value, seq2.Value, amThreads)
 	if err != nil {
 		fatal("alligning %s", err.Error())
 	}

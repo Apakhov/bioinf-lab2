@@ -16,20 +16,16 @@ go build -o bld/amino *.go
 ## Flags
 
 ```
--g float
-    gap value (default -2)
--gap float
+-g -gap float
     gap value (default -2)
 -no-color
     disables colored output in cosole
 -no-connections
     disables connections in output
--o string
+-o -out string
     output file
--out string
-    output file
--t string
+-t -type string
     table type, one of Blosum64, DNA, Default (default "Default")
--type string
-    table type, one of Blosum64, DNA, Default (default "Default")
+-threads int
+    amount of threads for computing, for optimal speed use available amount of cpu (default 8)
 ```

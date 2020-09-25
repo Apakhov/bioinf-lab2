@@ -17,6 +17,7 @@ var (
 	outFile      string
 	noColor      bool
 	noConnectios bool
+	amThreads    int
 )
 
 func fatal(format string, v ...interface{}) {

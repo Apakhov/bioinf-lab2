@@ -3,6 +3,8 @@ package sequence
 import (
 	"math"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 )
@@ -115,16 +117,64 @@ func (dt allgDinTable) allign(alg Alligner, a, b string) (string, string, float6
 	return reverse(resA.String()), reverse(resB.String()), dt.vals[len(a)][len(b)]
 }
 
-func Allign(alg Alligner, a, b string) (string, string, float64, error) {
+func (dt allgDinTable) calcRow(
+	alg Alligner,
+	beg, end int,
+	lBound, rBound *int32,
+	a, b string,
+) {
+	if beg == end {
+		return
+	}
+	for i := 1; i <= len(a); i++ {
+		for {
+			v := atomic.LoadInt32(lBound)
+			if int32(i) < v+1 {
+				break
+			}
+		}
+		for j := beg; j < end; j++ {
+			dt.calc(alg, i, j, a[i-1], b[j-1])
+		}
+		atomic.AddInt32(rBound, 1)
+	}
+}
+
+func (dt allgDinTable) calcTable(alg Alligner, a, b string, amThreads int) {
+	rowsPoints := make([]int, amThreads+1)
+	rowsPoints[0] = 1
+	for i := 1; i < amThreads+1; i++ {
+		rowsPoints[i] = len(b) / amThreads
+		if len(b)%amThreads > i-1 {
+			rowsPoints[i]++
+		}
+		rowsPoints[i] += rowsPoints[i-1]
+	}
+	bounds := make([]int32, amThreads)
+	bounds[0] = int32(len(b))
+	wg := sync.WaitGroup{}
+	wg.Add(amThreads)
+	for i := 0; i < amThreads; i++ {
+		beg, end := rowsPoints[i], rowsPoints[i+1]
+		if beg == end {
+			wg.Done()
+			continue
+		}
+		lBound, rBound := &bounds[i], &bounds[(i+1)%amThreads]
+		go func(beg, end int, lBound, rBound *int32) {
+			dt.calcRow(alg, beg, end, lBound, rBound, a, b)
+			wg.Done()
+		}(beg, end, lBound, rBound)
+	}
+	wg.Wait()
+}
+
+func Allign(alg Alligner, a, b string, amThreads int) (string, string, float64, error) {
 	if !checkSeq(alg, a) || !checkSeq(alg, b) {
 		return "", "", 0, errors.New("bad seq")
 	}
 	dt := initDinTable(alg, a, b)
-	for i := 1; i <= len(a); i++ {
-		for j := 1; j <= len(b); j++ {
-			dt.calc(alg, i, j, a[i-1], b[j-1])
-		}
-	}
+	dt.calcTable(alg, a, b, amThreads)
 	resA, resB, v := dt.allign(alg, a, b)
 	return resA, resB, v, nil
 }
