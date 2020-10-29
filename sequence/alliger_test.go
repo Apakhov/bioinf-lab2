@@ -34,10 +34,27 @@ type testCaseAllg struct {
 
 func runTestCases(t *testing.T, allg Alligner, tcs []testCaseAllg) {
 	for i, tc := range tcs {
+		resA, resB, score, err := Allign(allg, tc.a, tc.b, 1)
+		require.NoError(t, err)
+		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
+		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)
+		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+	}
+	for i, tc := range tcs {
 		resA, resB, score, err := Allign(allg, tc.a, tc.b, 8)
 		require.NoError(t, err)
 		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
 		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)
+		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+	}
+	for i, tc := range tcs {
+		_, _, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 1)
+		require.NoError(t, err)
+		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+	}
+	for i, tc := range tcs {
+		_, _, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 8)
+		require.NoError(t, err)
 		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
 	}
 }
@@ -46,11 +63,46 @@ func TestAllg(t *testing.T) {
 	allg := testAlligner()
 	tcs := []testCaseAllg{
 		{
+			a:     "",
+			b:     "",
+			resA:  "",
+			resB:  "",
+			score: 0,
+		},
+		{
+			a:     "A",
+			b:     "A",
+			resA:  "A",
+			resB:  "A",
+			score: 5,
+		},
+		{
+			a:     "AA",
+			b:     "AA",
+			resA:  "AA",
+			resB:  "AA",
+			score: 10,
+		},
+		{
 			a:     "AAA",
 			b:     "AAA",
 			resA:  "AAA",
 			resB:  "AAA",
 			score: 15,
+		},
+		{
+			a:     "A",
+			b:     "C",
+			resA:  "A",
+			resB:  "C",
+			score: -4,
+		},
+		{
+			a:     "AAA",
+			b:     "AAB",
+			resA:  "AAA",
+			resB:  "AAB",
+			score: 6,
 		},
 		{
 			a:     "AAAA",
@@ -67,6 +119,34 @@ func TestAllg(t *testing.T) {
 			score: 10,
 		},
 		{
+			a:     "AAC",
+			b:     "BCC",
+			resA:  "AAC",
+			resB:  "BCC",
+			score: -3,
+		},
+		{
+			a:     "AA",
+			b:     "BC",
+			resA:  "AA",
+			resB:  "BC",
+			score: -8,
+		},
+		{
+			a:     "AA",
+			b:     "B",
+			resA:  "AA",
+			resB:  "-B",
+			score: -9,
+		},
+		{
+			a:     "AACD",
+			b:     "BCD",
+			resA:  "AACD",
+			resB:  "-BCD",
+			score: 1,
+		},
+		{
 			a:     "ABBBCDDD",
 			b:     "ABCDDD",
 			resA:  "ABBBCDDD",
@@ -79,13 +159,6 @@ func TestAllg(t *testing.T) {
 			resA:  "A--BCDDD",
 			resB:  "ABBBCDDD",
 			score: 20,
-		},
-		{
-			a:     "AACD",
-			b:     "BCD",
-			resA:  "AACD",
-			resB:  "-BCD",
-			score: 1,
 		},
 	}
 	runTestCases(t, allg, tcs)

@@ -19,6 +19,7 @@ func init() {
 	flag.UintVar(&outAlignment, "oa", 0, "alignment of result sequences, if 0 no alignment used")
 	flag.BoolVar(&logTime, "log-time", false, "print time of processing in log")
 	flag.IntVar(&amThreads, "threads", 8, "amount of threads for computing, for optimal speed use available amount of cpu")
+	flag.BoolVar(&memOpt, "mem-opt", false, "run with memory usage optimized algorithm. it is slower but uses far less memory")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %[1]s:\n%[1]s {-flag [val]} file [file2]\n", os.Args[0])
 		flag.PrintDefaults()

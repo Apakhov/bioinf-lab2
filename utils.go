@@ -16,6 +16,7 @@ var (
 	gap          float64
 	outFile      string
 	noColor      bool
+	memOpt       bool
 	noConnectios bool
 	logTime      bool
 	amThreads    int

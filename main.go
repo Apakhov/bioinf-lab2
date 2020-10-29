@@ -28,8 +28,13 @@ func main() {
 	default:
 		fatal("bad table type %s", tableType)
 	}
+	allign := sequence.Allign
+	if memOpt {
+		allign = sequence.AllignMemoryOpt
+		log.Println("using mem-opt")
+	}
 	t := time.Now()
-	res1, res2, v, err := sequence.Allign(allg, seq1.Value, seq2.Value, amThreads)
+	res1, res2, v, err := allign(allg, seq1.Value, seq2.Value, amThreads)
 	if logTime {
 		log.Print("calculation time: ", time.Now().Sub(t))
 	}
