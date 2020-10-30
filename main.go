@@ -31,7 +31,6 @@ func main() {
 	allign := sequence.Allign
 	if memOpt {
 		allign = sequence.AllignMemoryOpt
-		log.Println("using mem-opt")
 	}
 	t := time.Now()
 	res1, res2, v, err := allign(allg, seq1.Value, seq2.Value, amThreads)

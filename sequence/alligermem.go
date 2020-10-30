@@ -3,6 +3,7 @@ package sequence
 import (
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -13,13 +14,14 @@ type cell struct {
 }
 
 type allgDinTableMem struct {
-	alg        Alligner
-	a          string
-	b          string
-	upBuf      []float64
-	downBuf    []float64
-	reserveBuf []float64
-	threads    int
+	alg     Alligner
+	a       string
+	b       string
+	upBuf   []float64
+	downBuf []float64
+	resBuf  []allgAction
+	async   bool
+	wg      sync.WaitGroup
 }
 
 func initDinTableMem(alg Alligner, a, b string, amThreads int) allgDinTableMem {
@@ -27,111 +29,126 @@ func initDinTableMem(alg Alligner, a, b string, amThreads int) allgDinTableMem {
 		amThreads = 1
 	}
 	return allgDinTableMem{
-		alg:        alg,
-		a:          a,
-		b:          b,
-		upBuf:      make([]float64, len(a)+1),
-		downBuf:    make([]float64, len(a)+1),
-		reserveBuf: make([]float64, len(a)+1),
-		threads:    amThreads,
+		alg:     alg,
+		a:       a,
+		b:       b,
+		upBuf:   make([]float64, len(a)+1),
+		downBuf: make([]float64, len(a)+1),
+		resBuf:  make([]allgAction, len(a)+len(b)),
+		async:   amThreads > 1,
 	}
 }
 
-func (dt *allgDinTableMem) max(up, left, upLeft float64) (float64, allgAction) {
-	m := math.Max(up, math.Max(left, upLeft))
-	act := actionUp
-	if m == left {
-		act = actionLeft
-	}
-	if m == upLeft {
-		act = actionUpLeft
-	}
-	return m, act
+func (dt *allgDinTableMem) max(up, left, upLeft float64) float64 {
+	return math.Max(up, math.Max(left, upLeft))
 }
 
-func (dt *allgDinTableMem) calcFromUp(from, to cell) {
-
+func (dt *allgDinTableMem) calcFromUp(from, to cell, upBuf []float64) {
 	cur := float64(0)
 	for i := from.i; i <= to.i; i++ {
-		dt.upBuf[i] = cur
+		upBuf[i] = cur
 		cur += dt.alg.GapVal()
 	}
 
+	var hold float64
 	for j := from.j; j < to.j; j++ {
-		dt.reserveBuf[from.i] = dt.upBuf[from.i] + dt.alg.GapVal()
+		hold, upBuf[from.i] = upBuf[from.i], upBuf[from.i]+dt.alg.GapVal()
 		for i := from.i + 1; i <= to.i; i++ {
-			dt.reserveBuf[i], _ = dt.max(
-				dt.upBuf[i]+dt.alg.GapVal(),
-				dt.reserveBuf[i-1]+dt.alg.GapVal(),
-				dt.upBuf[i-1]+dt.alg.Compare(dt.a[i-1], dt.b[j]),
+			hold, upBuf[i] = upBuf[i], dt.max(
+				upBuf[i]+dt.alg.GapVal(),
+				upBuf[i-1]+dt.alg.GapVal(),
+				hold+dt.alg.Compare(dt.a[i-1], dt.b[j]),
 			)
 		}
-		for i := from.i; i <= to.i; i++ {
-			dt.upBuf[i] = dt.reserveBuf[i]
-		}
-
 	}
 }
 
-func (dt *allgDinTableMem) calcFromDown(from, to cell) {
-
+func (dt *allgDinTableMem) calcFromDown(from, to cell, downBuf []float64) {
 	cur := float64(0)
 	for i := to.i; i >= from.i; i-- {
-		dt.downBuf[i] = cur
+		downBuf[i] = cur
 		cur += dt.alg.GapVal()
 	}
 
+	var hold float64
 	for j := to.j; j > from.j; j-- {
-		dt.reserveBuf[to.i] = dt.downBuf[to.i] + dt.alg.GapVal()
+		hold, downBuf[to.i] = downBuf[to.i], downBuf[to.i]+dt.alg.GapVal()
 		for i := to.i - 1; i >= from.i; i-- {
-			dt.reserveBuf[i], _ = dt.max(
-				dt.downBuf[i]+dt.alg.GapVal(),
-				dt.reserveBuf[i+1]+dt.alg.GapVal(),
-				dt.downBuf[i+1]+dt.alg.Compare(dt.a[i], dt.b[j-1]),
+			hold, downBuf[i] = downBuf[i], dt.max(
+				downBuf[i]+dt.alg.GapVal(),
+				downBuf[i+1]+dt.alg.GapVal(),
+				hold+dt.alg.Compare(dt.a[i], dt.b[j-1]),
 			)
 		}
-		for i := from.i; i <= to.i; i++ {
-			dt.downBuf[i] = dt.reserveBuf[i]
-		}
-
 	}
+}
+
+func (dt *allgDinTableMem) calcFromUpDownAsync(upFrom, upTo, downFrom, downTo cell, upBuf, downBuf []float64) {
+	dt.wg.Add(2)
+	go func() {
+		dt.calcFromDown(downFrom, downTo, downBuf)
+		dt.wg.Done()
+	}()
+	go func() {
+		dt.calcFromUp(upFrom, upTo, upBuf)
+		dt.wg.Done()
+	}()
+	dt.wg.Wait()
 }
 
 func (dt *allgDinTableMem) calcPart(from, to cell) []allgAction {
-
+	res := dt.resBuf[from.i+from.j : to.i+from.j]
 	if from.j == to.j {
-		res := make([]allgAction, to.i-from.i)
-		for i := 0; i < len(res); i++ {
+		l := to.i - from.i
+		for i := 0; i < l; i++ {
 			res[i] = actionLeft
 		}
-		return res
+		return res[:l]
 	}
 
 	size := to.j - from.j
 	sizeFromUp := size / 2
 	sizeFromDown := (size - (size+1)%2) / 2
 
-	dt.calcFromUp(
-		from,
-		cell{
-			i: to.i,
-			j: from.j + sizeFromUp,
-		},
-	)
-	dt.calcFromDown(
-		cell{
-			i: from.i,
-			j: to.j - sizeFromDown,
-		},
-		to,
-	)
-
+	if !dt.async {
+		dt.calcFromUp(
+			from,
+			cell{
+				i: to.i,
+				j: from.j + sizeFromUp,
+			},
+			dt.upBuf,
+		)
+		dt.calcFromDown(
+			cell{
+				i: from.i,
+				j: to.j - sizeFromDown,
+			},
+			to,
+			dt.downBuf,
+		)
+	} else {
+		dt.calcFromUpDownAsync(
+			from,
+			cell{
+				i: to.i,
+				j: from.j + sizeFromUp,
+			},
+			cell{
+				i: from.i,
+				j: to.j - sizeFromDown,
+			},
+			to,
+			dt.upBuf,
+			dt.downBuf,
+		)
+	}
 	// default
 	upI := from.i
 	j := from.j + sizeFromUp
 	action := actionUp
 	val := dt.upBuf[upI] + dt.downBuf[upI] + dt.alg.GapVal()
-	// actionUp
+	// actionUp check
 	for i := from.i; i <= to.i; i++ {
 		curVal := dt.upBuf[i] + dt.downBuf[i] + dt.alg.GapVal()
 
@@ -140,7 +157,7 @@ func (dt *allgDinTableMem) calcPart(from, to cell) []allgAction {
 			val = curVal
 		}
 	}
-	// actionUpLeft
+	// actionUpLeft check
 	for i := from.i; i < to.i; i++ {
 		curVal := dt.upBuf[i] + dt.downBuf[i+1] + dt.alg.Compare(dt.a[i], dt.b[j])
 
@@ -163,16 +180,22 @@ func (dt *allgDinTableMem) calcPart(from, to cell) []allgAction {
 		nextFrom.i++
 	}
 
-	return append(append(dt.calcPart(from, nextTo), action), dt.calcPart(nextFrom, to)...)
+	res = res[:0:cap(res)]
+	res = append(res, dt.calcPart(from, nextTo)...)
+	res = append(res, action)
+	res = append(res, dt.calcPart(nextFrom, to)...)
+
+	return res
 }
 
 func (dt allgDinTableMem) allign(path []allgAction) (string, string, float64) {
 
 	resA := strings.Builder{}
 	resB := strings.Builder{}
+	resA.Grow(len(path))
+	resB.Grow(len(path))
 	val := float64(0)
 	i, j := 0, 0
-
 	for c := 0; i < len(dt.a) || j < len(dt.b); c++ {
 		switch path[c] {
 		case actionUp:

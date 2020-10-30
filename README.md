@@ -32,7 +32,7 @@ go build -o bld/amino *.go
     print time of processing in log
 -threads int
     amount of threads for computing, for optimal speed use available amount of cpu (default 8)
-    with -mem-opt defaults to 1
+    with -mem-opt if more than 1, treated as 2
 -mem-opt
     run with memory usage optimized algorithm. it is slower but uses far less memory
 ```
