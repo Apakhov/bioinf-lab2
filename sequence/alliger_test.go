@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,7 +9,7 @@ import (
 
 func testAlligner() Alligner {
 	return &tableAlliger{
-		gapVal: -5,
+		gapOpen: -5,
 		table: [][]float64{
 			{5, -4, -4, -4},
 			{-4, 5, -4, -4},
@@ -32,10 +33,32 @@ type testCaseAllg struct {
 	score float64
 }
 
+func checkScore(allg Alligner, a, b string) float64 {
+	score := float64(0)
+	gc := 0
+	for i := range a {
+		if a[i] == allg.Gap() && b[i] == allg.Gap() {
+			score = math.MinInt64
+		} else if a[i] == allg.Gap() || b[i] == allg.Gap() {
+			if allg.IsExtended() && gc > 0 {
+				score += allg.GapExtend()
+			} else {
+				score += allg.GapOpen()
+			}
+			gc++
+		} else {
+			gc = 0
+			score += allg.Compare(a[i], b[i])
+		}
+	}
+	return score
+}
+
 func runTestCases(t *testing.T, allg Alligner, tcs []testCaseAllg) {
 	for i, tc := range tcs {
 		resA, resB, score, err := Allign(allg, tc.a, tc.b, 1)
 		require.NoError(t, err)
+		require.Equal(t, score, checkScore(allg, resA, resB), "incosistent result on\n%s\n%s", resA, resB)
 		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
 		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)
 		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
@@ -43,19 +66,24 @@ func runTestCases(t *testing.T, allg Alligner, tcs []testCaseAllg) {
 	for i, tc := range tcs {
 		resA, resB, score, err := Allign(allg, tc.a, tc.b, 8)
 		require.NoError(t, err)
+		require.Equal(t, score, checkScore(allg, resA, resB), "incosistent result on\n%s\n%s", resA, resB)
 		require.Equal(t, tc.resA, resA, "failed seq A test %d", i)
 		require.Equal(t, tc.resB, resB, "failed seq B test %d", i)
 		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
 	}
-	for i, tc := range tcs {
-		_, _, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 1)
-		require.NoError(t, err)
-		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
-	}
-	for i, tc := range tcs {
-		_, _, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 8)
-		require.NoError(t, err)
-		require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+	if !allg.IsExtended() {
+		for i, tc := range tcs {
+			resA, resB, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 1)
+			require.NoError(t, err)
+			require.Equal(t, score, checkScore(allg, resA, resB), "incosistent result on\n%s\n%s", resA, resB)
+			require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+		}
+		for i, tc := range tcs {
+			resA, resB, score, err := AllignMemoryOpt(allg, tc.a, tc.b, 8)
+			require.NoError(t, err)
+			require.Equal(t, score, checkScore(allg, resA, resB), "incosistent result on\n%s\n%s", resA, resB)
+			require.Equal(t, tc.score, score, "failed SCORE test %d", i)
+		}
 	}
 }
 
@@ -165,7 +193,7 @@ func TestAllg(t *testing.T) {
 }
 
 func TestAllgBlosum(t *testing.T) {
-	allg := NewAlligerBLOSUM62(-10)
+	allg := NewAlligerBLOSUM62(-10, -10)
 	tcs := []testCaseAllg{
 		{ // verified on https://www.ebi.ac.uk/Tools/psa/emboss_needle/
 			a:     "SPETVIHSGWVIWRELFSHWPDQCKLLFGDWFAWIHWTYLVYYSAGPPCQGQSDIVVMMQKKLRTNFCQCYKYWYQ",
@@ -179,7 +207,7 @@ func TestAllgBlosum(t *testing.T) {
 }
 
 func TestAllgDNA(t *testing.T) {
-	allg := NewAlligerDNA(-10)
+	allg := NewAlligerDNA(-10, -10)
 	tcs := []testCaseAllg{
 		{ // verified on https://www.ebi.ac.uk/Tools/psa/emboss_needle/
 			a:     "GCGCGTGCGCGGAAGGAGCCAAGGTGAAGTTGTAGCAGTGTGTCAGAAGAGGTGCGTGGCACCATGCTGTCCCCCGAGGCGGAGCGGGTGCTGCGGTACCTGGTCGAAGTAGAGGAGTTG",
@@ -192,7 +220,7 @@ func TestAllgDNA(t *testing.T) {
 	runTestCases(t, allg, tcs)
 }
 
-var benchAllg Alligner = NewAlligerBLOSUM62(-10)
+var benchAllg Alligner = NewAlligerBLOSUM62(-10, -10)
 
 func BenchmarkOneThread(b *testing.B) {
 	tc := testCaseAllg{ // verified on https://www.ebi.ac.uk/Tools/psa/emboss_needle/

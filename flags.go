@@ -13,6 +13,9 @@ func init() {
 	flag.StringVar(&outFile, "o", "", "output file")
 	flag.Float64Var(&gap, "gap", -2, "gap value")
 	flag.Float64Var(&gap, "g", -2, "gap value")
+	flag.Float64Var(&gap, "gap-open", -2, "gap value")
+	flag.Float64Var(&gapExt, "gap-extend", 0, "gap extand value")
+	flag.Float64Var(&gapExt, "ge", 0, "gap extand value")
 	flag.BoolVar(&noColor, "no-color", false, "disables colored output in cosole")
 	flag.BoolVar(&noConnectios, "no-connections", false, "disables connections in output")
 	flag.UintVar(&outAlignment, "outalignment", 0, "alignment of result sequences, if 0 no alignment used")
@@ -24,4 +27,18 @@ func init() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %[1]s:\n%[1]s {-flag [val]} file [file2]\n", os.Args[0])
 		flag.PrintDefaults()
 	}
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func isGapExtPassed() bool {
+	return isFlagPassed("gap-extend") || isFlagPassed("ge")
 }

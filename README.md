@@ -16,8 +16,11 @@ go build -o bld/amino *.go
 ## Flags
 
 ```
--g -gap float
-    gap value (default -2)
+-g -gap -gap-open float
+    gap or gap open value (default -2)
+-ge -gap-extend float
+    gap extand value. equals to gap if not provided
+    does not work with -mem-opt
 -no-color
     disables colored output in cosole
 -no-connections

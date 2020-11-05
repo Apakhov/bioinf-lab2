@@ -14,6 +14,7 @@ const (
 var (
 	tableType    string
 	gap          float64
+	gapExt       float64
 	outFile      string
 	noColor      bool
 	memOpt       bool

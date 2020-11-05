@@ -15,16 +15,20 @@ func main() {
 		fatal("bad amount of files - 0")
 	}
 
+	if !isGapExtPassed() {
+		gapExt = gap
+	}
+
 	seq1, seq2 := readSeqsFromFiles(files)
 
 	var allg sequence.Alligner
 	switch tableType {
 	case useBlosum:
-		allg = sequence.NewAlligerBLOSUM62(gap)
+		allg = sequence.NewAlligerBLOSUM62(gap, gapExt)
 	case useDefault:
-		allg = sequence.NewDefault(gap)
+		allg = sequence.NewDefaultExteded(gap, gapExt)
 	case useDNA:
-		allg = sequence.NewAlligerDNA(gap)
+		allg = sequence.NewAlligerDNA(gap, gapExt)
 	default:
 		fatal("bad table type %s", tableType)
 	}

@@ -1,7 +1,6 @@
 package sequence
 
 import (
-	"math"
 	"strings"
 	"sync"
 
@@ -39,24 +38,20 @@ func initDinTableMem(alg Alligner, a, b string, amThreads int) allgDinTableMem {
 	}
 }
 
-func (dt *allgDinTableMem) max(up, left, upLeft float64) float64 {
-	return math.Max(up, math.Max(left, upLeft))
-}
-
 func (dt *allgDinTableMem) calcFromUp(from, to cell, upBuf []float64) {
 	cur := float64(0)
 	for i := from.i; i <= to.i; i++ {
 		upBuf[i] = cur
-		cur += dt.alg.GapVal()
+		cur += dt.alg.GapOpen()
 	}
 
 	var hold float64
 	for j := from.j; j < to.j; j++ {
-		hold, upBuf[from.i] = upBuf[from.i], upBuf[from.i]+dt.alg.GapVal()
+		hold, upBuf[from.i] = upBuf[from.i], upBuf[from.i]+dt.alg.GapOpen()
 		for i := from.i + 1; i <= to.i; i++ {
-			hold, upBuf[i] = upBuf[i], dt.max(
-				upBuf[i]+dt.alg.GapVal(),
-				upBuf[i-1]+dt.alg.GapVal(),
+			hold, upBuf[i] = upBuf[i], maxFloat3(
+				upBuf[i]+dt.alg.GapOpen(),
+				upBuf[i-1]+dt.alg.GapOpen(),
 				hold+dt.alg.Compare(dt.a[i-1], dt.b[j]),
 			)
 		}
@@ -67,16 +62,16 @@ func (dt *allgDinTableMem) calcFromDown(from, to cell, downBuf []float64) {
 	cur := float64(0)
 	for i := to.i; i >= from.i; i-- {
 		downBuf[i] = cur
-		cur += dt.alg.GapVal()
+		cur += dt.alg.GapOpen()
 	}
 
 	var hold float64
 	for j := to.j; j > from.j; j-- {
-		hold, downBuf[to.i] = downBuf[to.i], downBuf[to.i]+dt.alg.GapVal()
+		hold, downBuf[to.i] = downBuf[to.i], downBuf[to.i]+dt.alg.GapOpen()
 		for i := to.i - 1; i >= from.i; i-- {
-			hold, downBuf[i] = downBuf[i], dt.max(
-				downBuf[i]+dt.alg.GapVal(),
-				downBuf[i+1]+dt.alg.GapVal(),
+			hold, downBuf[i] = downBuf[i], maxFloat3(
+				downBuf[i]+dt.alg.GapOpen(),
+				downBuf[i+1]+dt.alg.GapOpen(),
 				hold+dt.alg.Compare(dt.a[i], dt.b[j-1]),
 			)
 		}
@@ -147,10 +142,10 @@ func (dt *allgDinTableMem) calcPart(from, to cell) []allgAction {
 	upI := from.i
 	j := from.j + sizeFromUp
 	action := actionUp
-	val := dt.upBuf[upI] + dt.downBuf[upI] + dt.alg.GapVal()
+	val := dt.upBuf[upI] + dt.downBuf[upI] + dt.alg.GapOpen()
 	// actionUp check
 	for i := from.i; i <= to.i; i++ {
-		curVal := dt.upBuf[i] + dt.downBuf[i] + dt.alg.GapVal()
+		curVal := dt.upBuf[i] + dt.downBuf[i] + dt.alg.GapOpen()
 
 		if curVal > val {
 			upI = i
@@ -202,12 +197,12 @@ func (dt allgDinTableMem) allign(path []allgAction) (string, string, float64) {
 			resA.WriteByte(dt.alg.Gap())
 			resB.WriteByte(dt.b[j])
 			j++
-			val += dt.alg.GapVal()
+			val += dt.alg.GapOpen()
 		case actionLeft:
 			resA.WriteByte(dt.a[i])
 			resB.WriteByte(dt.alg.Gap())
 			i++
-			val += dt.alg.GapVal()
+			val += dt.alg.GapOpen()
 		case actionUpLeft:
 			resA.WriteByte(dt.a[i])
 			resB.WriteByte(dt.b[j])

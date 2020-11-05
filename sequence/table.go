@@ -1,7 +1,9 @@
 package sequence
 
 type tableAlliger struct {
-	gapVal    float64
+	gapOpen   float64
+	gapExtend float64
+	extended  bool
 	table     [][]float64
 	byteToIdx map[byte]int
 }
@@ -10,8 +12,15 @@ func (t *tableAlliger) Compare(a, b byte) float64 {
 	return t.table[t.byteToIdx[a]][t.byteToIdx[b]]
 }
 
-func (t *tableAlliger) GapVal() float64 {
-	return t.gapVal
+func (t *tableAlliger) IsExtended() bool {
+	return t.extended
+}
+
+func (t *tableAlliger) GapOpen() float64 {
+	return t.gapOpen
+}
+func (t *tableAlliger) GapExtend() float64 {
+	return t.gapExtend
 }
 func (t *tableAlliger) InAlphabet(b byte) bool {
 	_, ok := t.byteToIdx[b]
@@ -24,20 +33,24 @@ func (t *tableAlliger) Gap() byte {
 
 func NewTableAlliger(
 	gapVal float64,
+	gapExtend float64,
 	table [][]float64,
 	byteToIdx map[byte]int,
 ) Alligner {
 	ta := &tableAlliger{
-		gapVal:    gapVal,
+		gapOpen:   gapVal,
+		gapExtend: gapExtend,
+		extended:  gapVal != gapExtend,
 		table:     table,
 		byteToIdx: byteToIdx,
 	}
 	return ta
 }
 
-func NewAlligerBLOSUM62(gapVal float64) Alligner {
+func NewAlligerBLOSUM62(gapVal, gapExtend float64) Alligner {
 	return NewTableAlliger(
 		gapVal,
+		gapExtend,
 		[][]float64{
 			{4, -1, -2, -2, 0, -1, -1, 0, -2, -1, -1, -1, -1, -2, -1, 1, 0, -3, -2, 0},
 			{-1, 5, 0, -2, -3, 1, 0, -2, 0, -3, -2, 2, -1, -3, -2, -1, -1, -3, -2, -3},
@@ -85,9 +98,10 @@ func NewAlligerBLOSUM62(gapVal float64) Alligner {
 	)
 }
 
-func NewAlligerDNA(gapVal float64) Alligner {
+func NewAlligerDNA(gapVal, gapExtend float64) Alligner {
 	return NewTableAlliger(
 		gapVal,
+		gapExtend,
 		[][]float64{
 			{5, -4, -4, -4},
 			{-4, 5, -4, -4},
@@ -104,12 +118,24 @@ func NewAlligerDNA(gapVal float64) Alligner {
 }
 
 type defAlligner struct {
-	gapVal float64
+	gapOpen   float64
+	gapExtend float64
+	extended  bool
 }
 
 func NewDefault(gapVal float64) Alligner {
 	return &defAlligner{
-		gapVal: gapVal,
+		gapOpen:   gapVal,
+		gapExtend: gapVal,
+		extended:  false,
+	}
+}
+
+func NewDefaultExteded(gapOpen float64, gapExtend float64) Alligner {
+	return &defAlligner{
+		gapOpen:   gapOpen,
+		gapExtend: gapExtend,
+		extended:  gapOpen != gapExtend,
 	}
 }
 
@@ -120,8 +146,18 @@ func (t *defAlligner) Compare(a, b byte) float64 {
 	return -1
 }
 
-func (t *defAlligner) GapVal() float64 {
-	return t.gapVal
+func (t *defAlligner) IsExtended() bool {
+	return t.extended
+}
+
+func (t *defAlligner) GapOpen() float64 {
+	return t.gapOpen
+}
+func (t *defAlligner) GapExtend() float64 {
+	if t.extended {
+		return t.gapOpen
+	}
+	return t.gapExtend
 }
 func (t *defAlligner) InAlphabet(b byte) bool {
 	return b != t.Gap()
