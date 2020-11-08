@@ -33,29 +33,18 @@ func checkSeq(alg Alligner, a string) bool {
 type allgAction int
 
 const (
-	actionUp     allgAction = 0b001
-	actionLeft   allgAction = 0b010
-	actionUpLeft allgAction = 0b100
+	actionUp = allgAction(iota + 1)
+	actionLeft
+	actionUpLeft
 
-	stShift  allgAction = 0
-	insShift allgAction = 3
-	delShift allgAction = 6
+	dirMat = allgAction(iota - 2)
+	dirIns
+	dirDel
 
-	actionUpSt     = actionUp << stShift
-	actionLeftSt   = actionLeft << stShift
-	actionUpLeftSt = actionUpLeft << stShift
-
-	actionUpIns     = actionUp << insShift
-	actionLeftIns   = actionLeft << insShift
-	actionUpLeftIns = actionUpLeft << insShift
-
-	actionUpDel     = actionUp << delShift
-	actionLeftDel   = actionLeft << delShift
-	actionUpLeftDel = actionUpLeft << delShift
-
-	upLeftMask = (actionUpLeftSt | actionUpLeftIns | actionUpLeftDel)
-	leftMask   = (actionLeftSt | actionLeftIns | actionLeftDel)
-	upMask     = (actionUpSt | actionUpIns | actionUpDel)
+	dirMask  = 0b11
+	shiftMat = 0
+	shiftIns = 2
+	shiftDel = 4
 )
 
 type allgDinTable struct {
@@ -151,13 +140,13 @@ func (dt *allgDinTable) initExtend(alg Alligner, a, b string) {
 		dt.vals[i][0] = inf
 		dt.inss[i][0] = inf
 		dt.dels[i][0] = alg.GapOpen() + float64(i-1)*alg.GapExtend()
-		dt.acts[i][0] = actionUpDel
+		dt.acts[i][0] = dirDel << shiftDel
 	}
 	for i := 1; i <= len(b); i++ {
 		dt.vals[0][i] = inf
 		dt.inss[0][i] = alg.GapOpen() + float64(i-1)*alg.GapExtend()
 		dt.dels[0][i] = inf
-		dt.acts[0][i] = actionLeftIns
+		dt.acts[0][i] = dirIns << shiftIns
 	}
 	dt.calcImpl = dt.calcExtend
 	return
@@ -170,55 +159,21 @@ func (dt *allgDinTable) calcExtend(alg Alligner, i, j int, a, b byte) {
 
 	var actSt, actIns, actDel allgAction
 	dt.vals[i][j], actSt = maxFloat3DirAlt(
-		dt.vals[i-1][j-1]+cmp, actionUpLeftSt,
-		dt.inss[i-1][j-1]+cmp, actionUpLeftIns,
-		dt.dels[i-1][j-1]+cmp, actionUpLeftDel,
+		dt.vals[i-1][j-1]+cmp, dirMat,
+		dt.inss[i-1][j-1]+cmp, dirIns,
+		dt.dels[i-1][j-1]+cmp, dirDel,
 	)
 	dt.inss[i][j], actIns = maxFloat3DirAlt(
-		dt.vals[i][j-1]+open, actionLeftSt,
-		dt.inss[i][j-1]+ext, actionLeftIns,
-		dt.dels[i][j-1]+open, actionLeftDel,
+		dt.vals[i][j-1]+open, dirMat,
+		dt.inss[i][j-1]+ext, dirIns,
+		dt.dels[i][j-1]+open, dirDel,
 	)
 	dt.dels[i][j], actDel = maxFloat3DirAlt(
-		dt.vals[i-1][j]+open, actionUpSt,
-		dt.inss[i-1][j]+open, actionUpIns,
-		dt.dels[i-1][j]+ext, actionUpDel,
+		dt.vals[i-1][j]+open, dirMat,
+		dt.inss[i-1][j]+open, dirIns,
+		dt.dels[i-1][j]+ext, dirDel,
 	)
-
-	dt.acts[i][j] = actSt | actIns | actDel
-}
-
-func choosePrevAction(a allgAction, v allgAction) (hor allgAction, vShift allgAction) {
-	switch v {
-	case stShift:
-		switch a & upLeftMask {
-		case actionUpLeftSt:
-			return actionUpLeft, stShift
-		case actionUpLeftIns:
-			return actionUpLeft, insShift
-		case actionUpLeftDel:
-			return actionUpLeft, delShift
-		}
-	case insShift:
-		switch a & leftMask {
-		case actionLeftSt:
-			return actionLeft, stShift
-		case actionLeftIns:
-			return actionLeft, insShift
-		case actionLeftDel:
-			return actionLeft, delShift
-		}
-	case delShift:
-		switch a & upMask {
-		case actionUpSt:
-			return actionUp, stShift
-		case actionUpIns:
-			return actionUp, insShift
-		case actionUpDel:
-			return actionUp, delShift
-		}
-	}
-	panic(SwitchErr)
+	dt.acts[i][j] = (actSt << shiftMat) | (actIns << shiftIns) | (actDel << shiftDel)
 }
 
 func (dt allgDinTable) allignExtend(alg Alligner, a, b string) (string, string, float64) {
@@ -231,31 +186,39 @@ func (dt allgDinTable) allignExtend(alg Alligner, a, b string) (string, string, 
 
 	i, j := len(a), len(b)
 	m := dt.vals[i][j]
-	vShift := stShift
+	dir := dirMat
 	if dt.inss[i][j] > m {
 		m = dt.inss[i][j]
-		vShift = insShift
+		dir = dirIns
 	}
 	if dt.dels[i][j] > m {
 		m = dt.dels[i][j]
-		vShift = delShift
+		dir = dirDel
 	}
-	var act allgAction
 	for i != 0 || j != 0 {
-		switch act, vShift = choosePrevAction(dt.acts[i][j], vShift); act {
-		case actionUp:
+		n := dt.acts[i][j]
+		switch dir {
+		case dirDel:
 			i--
 			resA.WriteByte(a[i])
 			resB.WriteByte(alg.Gap())
-		case actionLeft:
+		case dirIns:
 			j--
 			resA.WriteByte(alg.Gap())
 			resB.WriteByte(b[j])
-		case actionUpLeft:
+		case dirMat:
 			i--
 			j--
 			resA.WriteByte(a[i])
 			resB.WriteByte(b[j])
+		}
+		switch dir {
+		case dirMat:
+			dir = (n >> shiftMat) & dirMask
+		case dirDel:
+			dir = (n >> shiftDel) & dirMask
+		case dirIns:
+			dir = (n >> shiftIns) & dirMask
 		}
 	}
 	return reverse(resA.String()), reverse(resB.String()), m
